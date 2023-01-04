@@ -104,24 +104,20 @@ class Tab extends React.Component {
                   <Todo></Todo>
                 </div>
                 <div className="column mgt-col">
-                  <Card>
+                  <Card fluid style={{ height: "unset" }}>
                     <CardHeader>
                       <Flex gap="gap.small">
                         <Avatar
-                          image="https://fabricweb.azureedge.net/fabric-website/assets/images/avatar/RobertTolbert.jpg"
-                          label="Direct Functionality Planner"
-                          name="Toney Rath"
-                          status="unknown"
+                          image="https://miro.medium.com/max/800/1*8orwInnxqPRhrcKf9aOo9Q.png"
+                          name="Azure DevOps"
                         />
                         <Flex column>
-                          <Text content="Toney Rath" weight="bold" />
-                          <Text content="Direct Functionality Planner" size="small" />
+                          <Text content="Azure DevOps" weight="bold" />
                         </Flex>
                       </Flex>
                     </CardHeader>
                     <CardBody>
-                      Eligendi incidunt hic. Omnis qui ullam rem maxime et nostrum nulla. Distinctio corporis
-                      officiis.
+                      Issue #1234 is assigned to you.
                     </CardBody>
                   </Card>
                 </div>

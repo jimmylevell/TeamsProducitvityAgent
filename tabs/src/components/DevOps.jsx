@@ -1,115 +1,88 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import { TeamsFx } from "@microsoft/teamsfx";
-import { Button } from "@fluentui/react-northstar"
+import { Button, Flex, Segment, Image, Grid } from "@fluentui/react-northstar"
 import { Providers, ProviderState } from '@microsoft/mgt-element';
 import { TeamsFxProvider } from '@microsoft/mgt-teamsfx-provider';
 import { CacheService } from '@microsoft/mgt';
 
-class DevOps extends React.Component {
-  constructor(props) {
-    super(props);
-    CacheService.clearCaches();
-    this.state = {
-      showLoginPage: undefined,
-      token: undefined,
-      workItems: []
-    }
-  }
-  async componentDidMount() {
+import Issue from './Issue';
 
-    /*Define scope for the required permissions*/
-    this.scope = [
-      "499b84ac-1321-427f-aa17-267ca6975798/.default"
-    ];
+export default function DevOps(props) {
+  const [showLoginPage, setShowLoginPage] = useState(undefined);
+  const [token, setToken] = useState(undefined);
+  const [workItems, setWorkItems] = useState([]);
 
-    /*Initialize TeamsFX provider*/
-    this.teamsfx = new TeamsFx();
-    const provider = new TeamsFxProvider(this.teamsfx, this.scope)
-    Providers.globalProvider = provider;
+  const teamsfx = new TeamsFx();
+  const scope = [
+    "499b84ac-1321-427f-aa17-267ca6975798/.default"
+  ];
+  const provider = new TeamsFxProvider(teamsfx, scope)
+  Providers.globalProvider = provider;
 
-    /*Check if consent is needed*/
+  CacheService.clearCaches();
+
+  useEffect(() => {
     let consentNeeded = false;
     try {
-      let token = await this.teamsfx.getCredential().getToken(this.scope)
-      this.setState({
-        token: token
-      }, () => {
-        this.loadGraphData(this.state.token)
-      });
+      teamsfx.getCredential().getToken(scope)
+        .then(token => {
+          if (token && token.token) {
+
+            setToken(token)
+            loadGraphData(token)
+          }
+        })
     } catch (error) {
       consentNeeded = true;
     }
-    this.setState({
-      showLoginPage: consentNeeded
-    });
+    setShowLoginPage(consentNeeded)
     Providers.globalProvider.setState(consentNeeded ? ProviderState.SignedOut : ProviderState.SignedIn);
-    return consentNeeded;
+  }, [])
+
+  const load = async (url, method, token) => {
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Allow-control-allow-credentials': 'true',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token.token}`,
+      }
+    });
+
+    return await response.json();
   }
 
-  async loadGraphData(token) {
+  const loadGraphData = async (token) => {
     const devops = "https://dev.azure.com/levellch/kanban-cleanup/_apis/work/teamsettings/iterations?api-version=7.0&$timeframe=current"
+    const sprints = await load(devops, "GET", token);
 
-    const response = await fetch(devops, {
-      method: 'GET',
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Allow-control-allow-credentials': 'true',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.token}`,
-      }
-    });
+    let currentSprint = sprints.value.find(sprint => sprint.attributes.timeFrame === "current")
 
-    const data = await response.json();
+    const workItemsData = await load(currentSprint.url + "/workitems?api-version=7.0", "GET", token)
 
-    let currentSprint = data.value.find(sprint => sprint.attributes.timeFrame === "current")
-
-    const workItemsGet = await fetch(currentSprint.url + "/workitems?api-version=7.0", {
-      method: 'GET',
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Allow-control-allow-credentials': 'true',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.token}`,
-      }
-    });
-
-    let response2 = await workItemsGet.json();
-
-    let workItems = response2.workItemRelations.map(item => {
+    let workItems = workItemsData.workItemRelations.map(item => {
       return { id: item.target.id, url: item.target.url }
     })
 
     let fullWorkItems = []
-    await workItems.forEach(async (item) => {
-      const workItemsGet = await fetch(item.url + "?api-version=7.0", {
-        method: 'GET',
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Allow-control-allow-credentials': 'true',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token.token}`,
-        }
-      });
-      fullWorkItems.push(await workItemsGet.json())
-    })
+    await Promise.all(workItems.map(async (item) => {
+      const workItemsGet = await load(item.url + "?api-version=7.0&$expand=All", "GET", token);
+      fullWorkItems.push(workItemsGet)
+    }))
 
-    this.setState({
-      workItems: fullWorkItems
-    })
-
+    setWorkItems(fullWorkItems)
   }
 
-  async loginBtnClick() {
+  const loginBtnClick = async () => {
     try {
-      await this.teamsfx.login(this.scope);
+      await teamsfx.login(this.scope);
       Providers.globalProvider.setState(ProviderState.SignedIn);
-      this.setState({
-        showLoginPage: false
-      });
+      setShowLoginPage(false);
     } catch (err) {
       if (err.message?.includes("CancelledByUser")) {
         const helpLink = "https://aka.ms/teamsfx-auth-code-flow";
@@ -122,13 +95,13 @@ class DevOps extends React.Component {
       return;
     }
   }
-  render() {
-    console.log(this.state.workItems)
-    return (
-      <div>
-        {
-          this.state.showLoginPage === false &&
 
+  console.log(workItems)
+  return (
+    <>
+      {
+        showLoginPage === false &&
+        <>
           <div>
             <div className="features">
               <div className="header">
@@ -148,32 +121,48 @@ class DevOps extends React.Component {
               </div>
               <div className="row content">
                 <div className="column mgt-col">
-                  {this.state.workItems.map(item => {
-
-                    return <div key={item.id} className="card">
-                      <div className="card-body">
-                        <h5 className="card-title">cbcfb{item.fields["System.Title"]}</h5>
-                        <p className="card-text">{item.fields["System.Description"]}</p>
-                      </div>
-                    </div>
-
+                  {workItems.map(item => {
+                    if (item.fields["System.BoardColumn"] === "To Do") {
+                      return <Issue key={item.id} item={item} load={load} token={token} />
+                    } else {
+                      return null
+                    }
+                  })
+                  }
+                </div>
+                <div className="column mgt-col">
+                  {workItems.map(item => {
+                    if (item.fields["System.BoardColumn"] === "Doing") {
+                      return <Issue key={item.id} item={item} load={load} token={token} />
+                    } else {
+                      return null
+                    }
+                  })
+                  }
+                </div>
+                <div className="column mgt-col">
+                  {workItems.forEach(item => {
+                    if (item.fields["System.BoardColumn"] === "Done") {
+                      return <Issue key={item.id} item={item} load={load} token={token} />
+                    } else {
+                      return null
+                    }
                   })
                   }
                 </div>
               </div>
             </div>
           </div>
-        }
-        {
-          this.state.showLoginPage === true &&
-          <div className="auth">
-            <h3>Welcome to the Producitivty Coach!</h3>
-            <p>Please click on "Start" and consent permissions to use the app.</p>
-            <Button primary onClick={() => this.loginBtnClick()}>Start</Button>
-          </div>
-        }
-      </div>
-    );
-  }
+        </>
+      }
+      {
+        showLoginPage === true &&
+        <div className="auth">
+          <h3>Welcome to the Producitivty Coach!</h3>
+          <p>Please click on "Start" and consent permissions to use the app.</p>
+          <Button primary onClick={() => loginBtnClick()}>Start</Button>
+        </div>
+      }
+    </>
+  );
 }
-export default DevOps;

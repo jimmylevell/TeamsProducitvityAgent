@@ -12,5 +12,7 @@
         "@microsoft/teamsfx-cli": "1.*"
     },
     "license": "MIT",
-    "dependencies": {}
+    "dependencies": {
+        "react-html-parser": "^2.0.2"
+    }
 }
