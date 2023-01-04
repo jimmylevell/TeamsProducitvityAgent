@@ -4,7 +4,8 @@ import { Provider, teamsTheme } from "@fluentui/react-northstar";
 import { HashRouter as Router, Redirect, Route } from "react-router-dom";
 import Privacy from "./Privacy";
 import TermsOfUse from "./TermsOfUse";
-import Tab from "./Tab";
+import Overview from "./Overview";
+import DevOps from "./DevOps";
 import "./App.css";
 import TabConfig from "./TabConfig";
 import { useTeams } from "@microsoft/teamsfx-react";
@@ -19,12 +20,13 @@ export default function App() {
     <Provider theme={theme || teamsTheme} styles={{ backgroundColor: "#eeeeee" }}>
       <Router>
         <Route exact path="/">
-          <Redirect to="/tab" />
+          <Redirect to="/overview" />
         </Route>
         <>
           <Route exact path="/privacy" component={Privacy} />
           <Route exact path="/termsofuse" component={TermsOfUse} />
-          <Route exact path="/tab" component={Tab} />
+          <Route exact path="/overview" component={Overview} />
+          <Route exact path="/azuredevops" component={DevOps} />
           <Route exact path="/config" component={TabConfig} />
         </>
       </Router>
